@@ -1,0 +1,87 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# virtual environments
+.venv/
+venv/
+env/
+
+# =========================
+# Jupyter Notebook
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# PyTorch / ML outputs
+# =========================
+outputs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# HuggingFace models (if saved locally)
+model/
+tokenizer/
+
+# TensorBoard / logs
+lightning_logs/
+logs/
+*.log
+
+# =========================
+# VSCode
+# =========================
+.vscode/
+.history/
+
+# =========================
+# macOS
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# =========================
+# matplotlib / plots cache
+# =========================
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.svg
+
+# optional: keep results only if you explicitly want them tracked
+# outputs/results.csv
+
+# =========================
+# IDE / editors
+# =========================
+.idea/
+*.swp
+*.swo
+
+# =========================
+# temporary files
+# =========================
+*.tmp
+*.temp
+
+# =========================
+# experiment artifacts
+# =========================
+wandb/
+mlruns/
