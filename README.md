@@ -1,150 +1,123 @@
-# Genomic Sequence Classification
+# Genomic Sequence Classification with DNABERT
 
-A deep learning framework for genomic sequence classification using transformer-based DNA language models (DNABERT).  
-The project supports multiple model architectures (Transformer, CNN, DNN) and compares different fine-tuning strategies for regulatory element prediction tasks.
+## Abstract
 
----
+We present a deep learning framework for genomic sequence classification using transformer-based DNA language models (DNABERT). The goal is to classify regulatory DNA sequences, specifically enhancer vs non-enhancer regions, using k-mer tokenized genomic input.
 
-## Overview
+We systematically evaluate different fine-tuning strategies, including frozen backbone, partial fine-tuning, and full fine-tuning of transformer layers. Experimental results demonstrate that partial fine-tuning of the last transformer layers achieves the best performance, outperforming both frozen and full fine-tuning approaches in terms of accuracy and ROC-AUC.
 
-This repository implements machine learning models for classifying genomic sequences into functional regulatory elements.  
-The current implementation focuses on enhancer vs non-enhancer classification using a DNABERT-based transformer model, with support for:
-
-- Full fine-tuning
-- Partial fine-tuning (last N layers)
-- Frozen backbone + trainable classifier head
-
-The framework is designed to be extensible to additional genomic tasks such as promoter prediction and multi-class regulatory element classification.
+These findings suggest that pretrained DNA language models capture general genomic structure, while task-specific adaptation is most effective in higher transformer layers.
 
 ---
 
-## Current Task
+## 1. Introduction
 
-### Enhancer Classification
-Binary classification of DNA sequences:
+Regulatory element prediction is a fundamental problem in computational genomics. Enhancers play a critical role in gene regulation, yet their identification from raw DNA sequences remains challenging.
 
-- **Enhancer**
-- **Non-enhancer**
+Recent advances in transformer-based language models, such as DNABERT, enable learning contextual representations of genomic sequences using k-mer tokenization. However, optimal fine-tuning strategies for downstream genomic tasks remain an open question.
 
-Input sequences are encoded using **k-mer tokenization (k=6)** and processed by a pretrained DNA language model.
+This study investigates how different levels of model fine-tuning affect classification performance on enhancer prediction.
 
 ---
 
-## Model Architecture
+## 2. Methods
 
-### Transformer Model (DNABERT)
+### 2.1 Dataset
+
+We use a binary classification dataset:
+
+- Enhancer sequences
+- Non-enhancer sequences
+
+Sequences are encoded using **k-mer tokenization (k=6)**.
+
+The dataset includes:
+- Synthetic enhancer classification data (easy.csv)
+- Balanced class distribution across train/validation/test splits
+
+---
+
+### 2.2 Model Architecture
+
+We use a pretrained DNABERT model:
 
 - Base model: `zhihan1996/DNA_bert_6`
-- Input: k-mer tokenized DNA sequences
-- Encoder: Transformer (BERT-style architecture)
-- Classifier head:
-  - Linear → ReLU → Dropout → Linear (binary output)
+- Transformer encoder (BERT architecture)
+- Hidden representation extracted from `[CLS]` token
+- Classification head:
+  - Linear → ReLU → Dropout → Linear
 
 ---
 
-## Training Strategies
+### 2.3 Training Strategies
 
-The project supports three fine-tuning strategies:
+We evaluate three fine-tuning strategies:
 
-| Strategy | Description |
-|----------|------------|
-| Frozen backbone | Only classifier head trained |
-| Partial fine-tuning | Last N transformer layers trainable |
-| Full fine-tuning | Entire model trainable |
+- **Frozen backbone**: only classifier head is trained
+- **Partial fine-tuning**: last N transformer layers are trainable
+- **Full fine-tuning**: entire transformer model is trainable
 
----
-
-## Results Summary
-
-| Tuning Strategy | Trainable Params | Validation Accuracy | Test Accuracy | Test ROC-AUC | Test PR-AUC | Training Time |
-|----------------|------------------|--------------|--------------|---------|--------|---------------|
-| Frozen | ~0.6M | 0.56 | 0.52 | 0.53 | 0.52 | ~1.7 min |
-| Partial (last 2 layers) | ~14.8M | 0.84 | 0.88 | 0.95 | 0.95 | ~3.3 min |
-| Partial (last 4 layers) | ~28.9M | 0.82 | 0.83 | 0.91 | 0.90 | ~4.7 min |
-| Full fine-tuning | ~89.8M | 0.5 | 0.5 | 0.5 | 0.5 | ~81.6 min |
-
-
+Loss function: Cross-Entropy Loss  
+Optimizer: AdamW  
+Framework: PyTorch Lightning  
+Precision: Mixed precision (16-bit AMP)
 
 ---
 
-## Key Features
+### 2.4 Evaluation Metrics
 
-- DNABERT-based genomic sequence modeling
-- k-mer DNA tokenization pipeline
-- PyTorch Lightning training framework
-- Mixed precision training (16-bit AMP)
-- Early stopping + model checkpointing
-- ROC-AUC / PR-AUC / confusion matrix evaluation
-- Experiment tracking (train/val/test metrics)
-- Fine-tuning strategy comparison
+Model performance is evaluated using:
 
----
-
-## Project Structure
-
-```
-genomic-sequence-classification/
-
-├── data/
-│   └── easy.csv
-
-├── outputs/
-│   ├── checkpoints/
-│   ├── model/
-│   ├── tokenizer/
-│   └── figures/
-
-├── Generate_SeqData.py
-├── Transformer.py
-├── requirements.txt
-└── README.md
-```
-
-## Installation
-```
-git clone https://github.com/XuejianXiong/genomic-sequence-classification.git
-cd genomic-sequence-classification
-
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
-```
-
-## Training
-
-Run training with:
-
-```python Transformer.py```
-
-To change tuning strategy:
-```
-tuning_value = 0   # frozen backbone
-tuning_value = -2  # last 2 layers
-tuning_value = 1   # full fine-tuning
-```
-
-## Outputs
-
-After training, the pipeline generates:
-
-- Best model checkpoint
-- Saved tokenizer + model
-- Test predictions (test_predictions.csv)
-- ROC curve
-- Precision-recall curve
+- Accuracy
+- ROC-AUC
+- Precision-Recall AUC
 - Confusion matrix
-- Full evaluation report
 
-## Future Work
+---
 
-- Extend to promoter prediction
+## 3. Results
+
+### 3.1 Performance Comparison
+
+| Tuning Strategy | Trainable Params | Test Accuracy | ROC-AUC | PR-AUC | Training Time |
+|----------------|------------------|--------------|---------|--------|---------------|
+| Frozen | ~0.6M | 0.52 | 0.53 | 0.52 | ~1.7 min |
+| Last 2 layers | ~14.8M | **0.88** | **0.95** | **0.95** | ~3.3 min |
+| Last 4 layers | ~28.9M | 0.83 | 0.91 | 0.90 | ~4.7 min |
+| Full fine-tuning | ~89.8M | 0.50 | 0.50 | 0.50 | ~81.6 min |
+
+---
+
+### 3.2 Key Finding
+
+Partial fine-tuning of the last transformer layers achieves optimal performance, suggesting that DNABERT’s pretrained representations capture general genomic structure, while task-specific adaptation is localized to higher-level layers.
+
+---
+
+## 4. Discussion
+
+Our results highlight the importance of selecting an appropriate fine-tuning strategy when applying large pretrained language models to genomic sequences.
+
+### Key observations:
+
+- **Frozen models underfit**, indicating that classifier-only training is insufficient for capturing task-specific genomic signals.
+- **Full fine-tuning leads to performance collapse**, likely due to overfitting and limited dataset size.
+- **Partial fine-tuning provides the best trade-off**, preserving pretrained representations while allowing task-specific adaptation.
+
+These findings are consistent with transfer learning behavior observed in natural language processing models, where lower layers capture general structure and higher layers adapt to task-specific patterns.
+
+---
+
+## 5. Conclusion
+
+We present a modular framework for genomic sequence classification using DNABERT. Our experiments demonstrate that partial fine-tuning yields optimal performance for enhancer classification tasks.
+
+Future work will extend this framework to:
+
+- Promoter prediction
 - Multi-class regulatory element classification
-- Integration with ENCODE / FANTOM5 datasets
+- Integration of ENCODE and FANTOM5 datasets
 - Chromosome-level train/test splitting
-- Add CNN and hybrid CNN–Transformer models
-- Improve interpretability (attention analysis)
 
-### Notes
+---
 
-This project is designed as a modular deep learning framework for genomic sequence classification and can be extended to real-world regulatory genomics datasets.
