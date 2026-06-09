@@ -121,3 +121,20 @@ Future work will extend this framework to:
 
 ---
 
+## 6. Installation
+
+```
+git clone <repo>
+
+cd Genomic-Sequence-Classification
+
+python -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+
+python3 -m experiments.Transformer
+```
+
+---
+
