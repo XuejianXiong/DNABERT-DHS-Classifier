@@ -51,8 +51,8 @@ def main():
     model_name = "zhihan1996/DNA_bert_6"
     #model_name = "Peltarion/dnabert-minilm-small"
 
-    tuning_value = -2          # 0, -2, -4, -6, 1
-    input_data = "medium"      # easy, medium, realistic, noisy, grammar
+    tuning_value = 1          # 0, -2, -4, -6, 1
+    input_data = "easy"      # easy, medium, realistic, noisy, grammar
     output_path = f"outputs/{input_data}"
 
     data_module = DNADataModule(
