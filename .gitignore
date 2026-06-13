@@ -25,9 +25,12 @@ env/
 # =========================
 # PyTorch / ML outputs
 # =========================
-outputs/
+outputs/*
+!outputs/
+!outputs/dhs/
 !outputs/dhs/*.png
 !outputs/dhs/experiment_summary.csv
+
 checkpoints/
 *.pt
 *.pth
@@ -57,14 +60,6 @@ logs/
 Icon
 ._*
 
-# =========================
-# matplotlib / plots cache
-# =========================
-*.png
-*.jpg
-*.jpeg
-*.pdf
-*.svg
 
 # optional: keep results only if you explicitly want them tracked
 # outputs/results.csv

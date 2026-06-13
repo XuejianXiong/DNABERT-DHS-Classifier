@@ -1,0 +1,2 @@
+tuning,trainable_params,total_params,epochs_trained,train_time_min,run_time_min,val_loss,val_accu,val_roc_auc,val_pr_auc,test_acc,test_loss,test_auc,test_pr_auc
+last_2,14769412,89784580,9,94.27,96.20,0.77,0.71,0.91,0.80,0.70,0.84,0.89,0.77
