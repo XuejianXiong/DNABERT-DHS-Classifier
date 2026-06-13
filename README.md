@@ -28,15 +28,11 @@ The primary goals were:
 
 Data were obtained from:
 
-Meuleman et al. (2020)
-
-> Index and biological spectrum of human DNase I hypersensitive sites.
+Meuleman et al. (2020) "Index and biological spectrum of human DNase I hypersensitive sites."
 
 The DHS Index contains approximately 3.6 million regulatory elements derived from hundreds of human tissues and cell types.
 
-Dataset:
-
-https://www.meuleman.org/research/dhsindex/
+Dataset: https://www.meuleman.org/research/dhsindex/
 
 ---
 
@@ -57,9 +53,7 @@ Only DHS peaks uniquely associated with a single selected cell type were retaine
 
 ## Data Processing
 
-The workflow follows the preprocessing strategy implemented in the DNA-Diffusion project:
-
-[DNA-Diffusion Project](https://github.com/pinellolab/DNA-Diffusion?utm_source=chatgpt.com)
+The workflow follows the preprocessing strategy implemented in the [DNA-Diffusion Project](https://github.com/pinellolab/DNA-Diffusion?utm_source=chatgpt.com) :
 
 Specifically:
 
@@ -89,12 +83,6 @@ This project uses:
 
 A transformer language model pretrained on genomic sequences using 6-mer tokenization.
 
-Reference:
-
-Ji et al. (2021)
-
-> DNABERT: pre-trained Bidirectional Encoder Representations from Transformers model for DNA-language in genome.
-
 ---
 
 ### Fine-Tuning Strategy
@@ -120,7 +108,7 @@ The pretrained DNABERT encoder is fine-tuned using a classification head consist
 
 Only the final transformer layers were updated during training:
 
-```text
+```
 tuning = -2
 ```
 
@@ -134,7 +122,7 @@ To avoid information leakage between highly similar genomic regions, chromosome-
 
 Example:
 
-```text
+```
 Training:
 chr1–chr16
 
@@ -152,7 +140,7 @@ This evaluation strategy is more realistic than random splitting because the mod
 
 ## Repository Structure
 
-```text
+```
 .
 ├── data/
 │   ├── hg38.fa
@@ -266,6 +254,4 @@ Meuleman W, et al. (2020). Index and biological spectrum of human DNase I hypers
 
 Ji Y, et al. (2021). DNABERT: pre-trained Bidirectional Encoder Representations from Transformers model for DNA-language in genome.
 
-Pinello Lab DNA-Diffusion Project:
-
-https://github.com/pinellolab/DNA-Diffusion
+Pinello Lab DNA-Diffusion Project:  https://github.com/pinellolab/DNA-Diffusion
