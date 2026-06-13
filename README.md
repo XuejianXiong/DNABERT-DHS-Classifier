@@ -26,8 +26,7 @@ The primary goals were:
 
 ### DHS Index
 
-The DHS Index contains approximately 3.6 million regulatory elements derived from hundreds of human tissues and cell types.
-
+The DHS Index contains approximately 3.6 million regulatory elements derived from hundreds of human tissues and cell types. 
 Data were obtained from [meuleman.org](https://www.meuleman.org/research/dhsindex/) . 
 
 ---
@@ -84,7 +83,6 @@ Input DNA sequences are converted into overlapping 6-mers before tokenization.
 Example:
 ```
 DNA:  ATCGTACG
-
 6-mers:   ATCGTA TCGTAC CGTACG
 ```
 
@@ -110,17 +108,10 @@ This significantly reduces computational requirements while preserving most pret
 To avoid information leakage between highly similar genomic regions, chromosome-wise splitting was used.
 
 Example:
-
 ```
-Training:
-chr1–chr16
-
-Validation:
-chr17–chr19
-
-Testing:
-chr20–chr22
-chrX
+Training:   chr1–chr16
+Validation:   chr17–chr19
+Testing:    chr20–chr22, chrX
 ```
 
 This evaluation strategy is more realistic than random splitting because the model must generalize to unseen genomic loci.
@@ -164,14 +155,12 @@ This evaluation strategy is more realistic than random splitting because the mod
 ## Installation
 
 Create a Python environment:
-
 ```
 python -m venv .venv
 source .venv/bin/activate
 ```
 
 Install dependencies:
-
 ```
 pip install -r requirements.txt
 ```
@@ -244,3 +233,9 @@ Meuleman W, et al. (2020). Index and biological spectrum of human DNase I hypers
 Ji Y, et al. (2021). DNABERT: pre-trained Bidirectional Encoder Representations from Transformers model for DNA-language in genome.
 
 Pinello Lab DNA-Diffusion Project:  https://github.com/pinellolab/DNA-Diffusion
+
+---
+
+## License
+
+MIT License – feel free to use, adapt, and share.
