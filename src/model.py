@@ -1,125 +1,281 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+
 from transformers import AutoModel
+
 from torchmetrics.classification import (
-          BinaryAccuracy, 
-          BinaryAUROC, 
-          BinaryAveragePrecision
+    MulticlassAccuracy,
+    MulticlassAUROC,
+    MulticlassAveragePrecision
 )
 
 
-# Lightning Model (Transformer classifier)
 class DNAClassifier(pl.LightningModule):
-    def __init__(self, model_name: str, tuning: int = 1, lr: float = 2e-5):
+    def __init__(
+        self,
+        config: dict,
+        num_classes: int
+    ):
         super().__init__()
-        self.save_hyperparameters()
 
+        self.config = config
+        self.num_classes = num_classes
+
+        # =====================================================
+        # CONFIG
+        # =====================================================
+        model_cfg = config["model"]
+        train_cfg = config["training"]
+
+        model_name = model_cfg["name"]
+        tuning = model_cfg["tuning"]
+        hidden_factor = model_cfg.get("hidden_factor", 1)
+        dropout = model_cfg.get("dropout", 0.2)
+        pooling = model_cfg.get("pooling", "cls")
+
+        self.lr = train_cfg["lr"]
+        self.optimizer_name = train_cfg["optimizer"]
+        metric_average = train_cfg.get("metric_average", "macro")
+
+        self.pooling = pooling
+
+        # =====================================================
+        # BACKBONE
+        # =====================================================
         self.transformer = AutoModel.from_pretrained(model_name)
-        if tuning < 1:
-            self.set_tuning_layers(tuning)
 
         hidden_size = self.transformer.config.hidden_size
+        hidden_dim = int(hidden_size * hidden_factor)
 
+        # =====================================================
+        # CLASSIFIER HEAD
+        # =====================================================
         self.classifier = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_size, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_size, 2),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, num_classes)
         )
 
+        # =====================================================
+        # LOSS
+        # =====================================================
         self.loss_fn = nn.CrossEntropyLoss()
 
-        self.lr = lr
+        # =====================================================
+        # METRICS
+        # =====================================================
+        self.val_accuracy = MulticlassAccuracy(
+            num_classes=num_classes,
+            average=metric_average
+        )
 
-        self.val_accuracy = BinaryAccuracy()
-        self.val_auroc = BinaryAUROC()
-        self.val_pr_auc = BinaryAveragePrecision()
+        self.val_auroc = MulticlassAUROC(
+            num_classes=num_classes,
+            average=metric_average
+        )
 
-        self.test_accuracy = BinaryAccuracy()
-        self.test_auroc = BinaryAUROC()
-        self.test_pr_auc = BinaryAveragePrecision()
+        self.val_pr_auc = MulticlassAveragePrecision(
+            num_classes=num_classes,
+            average=metric_average
+        )
 
+        self.test_accuracy = MulticlassAccuracy(
+            num_classes=num_classes,
+            average=metric_average
+        )
+
+        self.test_auroc = MulticlassAUROC(
+            num_classes=num_classes,
+            average=metric_average
+        )
+
+        self.test_pr_auc = MulticlassAveragePrecision(
+            num_classes=num_classes,
+            average=metric_average
+        )
+
+        # =====================================================
+        # TUNING
+        # =====================================================
+        self.set_tuning_layers(tuning)
+
+        # =====================================================
+        # BEST VALIDATION METRICS
+        # =====================================================
         self.best_val_metrics = {
             "val_loss": float("inf"),
             "val_accu": 0.0,
             "val_roc_auc": 0.0,
             "val_pr_auc": 0.0,
-            }
+        }
 
-    def set_tuning_layers(self, tuning: int = 0):
+    # =====================================================
+    # TUNING STRATEGY
+    # =====================================================
+    def set_tuning_layers(self, tuning: int):
+
         for param in self.transformer.parameters():
-            param.requires_grad = False 
+            param.requires_grad = False
+
+        if tuning == 0:
+            return
 
         if tuning == 1:
             for param in self.transformer.parameters():
                 param.requires_grad = True
-            return    
-        elif tuning == 0:
             return
-        elif tuning < 0:
-            for layer in self.transformer.encoder.layer[tuning:]:
+
+        if tuning < 0:
+
+            if not hasattr(self.transformer, "encoder"):
+                raise ValueError(
+                    "Transformer model does not expose encoder layers."
+                )
+
+            n_layers = len(self.transformer.encoder.layer)
+            k = abs(tuning)
+
+            if k > n_layers:
+                raise ValueError(
+                    f"Requested {k} layers but model only has {n_layers}"
+                )
+
+            for layer in self.transformer.encoder.layer[n_layers - k:]:
                 for param in layer.parameters():
                     param.requires_grad = True
-            return    
-        
-        raise ValueError("tuning must be 1, 0, or negative integer e.g. -2, -4.")
-            
-    
-    def forward(self, input_ids, attention_mask):
-        output = self.transformer(
-            input_ids = input_ids, 
-            attention_mask = attention_mask
+
+            return
+
+        raise ValueError(
+            "tuning must be 0, 1, or negative integer"
+        )
+
+    # =====================================================
+    # POOLING
+    # =====================================================
+    def pool_embeddings(self, hidden, attention_mask):
+
+        if self.pooling == "cls":
+            return hidden[:, 0, :]
+
+        elif self.pooling == "mean":
+
+            mask = attention_mask.unsqueeze(-1)
+            masked_hidden = hidden * mask
+
+            return (
+                masked_hidden.sum(dim=1)
+                / mask.sum(dim=1).clamp(min=1e-9)
             )
-        
-        cls_emb = output.last_hidden_state[:,0,:]
-        logits = self.classifier(cls_emb)
+
+        else:
+            raise ValueError(
+                f"Unknown pooling method: {self.pooling}"
+            )
+
+    # =====================================================
+    # FORWARD
+    # =====================================================
+    def forward(self, input_ids, attention_mask):
+
+        output = self.transformer(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+
+        hidden = output.last_hidden_state
+
+        embedding = self.pool_embeddings(
+            hidden,
+            attention_mask
+        )
+
+        logits = self.classifier(embedding)
 
         return logits
-    
+
+    # =====================================================
+    # TRAINING
+    # =====================================================
     def training_step(self, batch, batch_idx):
-        logits = self(batch['input_ids'], batch['attention_mask'])
-        loss = self.loss_fn(logits, batch['labels'])
 
-        # Record the value of loss and label it as train_loss.
-        # self.log() is a PyTorch Lightning method used to record metrics 
-        # during training, validation, or testing.
-        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        logits = self(
+            batch["input_ids"],
+            batch["attention_mask"]
+        )
 
-        return loss  # This line is needed
-    
+        loss = self.loss_fn(
+            logits,
+            batch["labels"]
+        )
+
+        self.log(
+            "train_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True
+        )
+
+        return loss
+
+    # =====================================================
+    # VALIDATION
+    # =====================================================
     def on_validation_start(self):
+
         self.val_accuracy.reset()
         self.val_auroc.reset()
         self.val_pr_auc.reset()
 
     def validation_step(self, batch, batch_idx):
-        logits = self(batch['input_ids'], batch['attention_mask'])
-        loss = self.loss_fn(logits, batch['labels'])
 
-        # argmax() outputs the index of the highest score  
-        # dim=1 means: look across columns (class dimension)
+        logits = self(
+            batch["input_ids"],
+            batch["attention_mask"]
+        )
+
+        loss = self.loss_fn(
+            logits,
+            batch["labels"]
+        )
+
         preds = torch.argmax(logits, dim=1)
-        #accuracy = (preds == batch['labels']).float().mean()
-        self.val_accuracy.update(preds, batch['labels'])
+        probs = torch.softmax(logits, dim=1)
 
-        probs = torch.softmax(logits, dim=1)[:,1]
-        self.val_auroc.update(probs, batch['labels'])
-        self.val_pr_auc.update(probs, batch['labels'])
+        self.val_accuracy.update(
+            preds,
+            batch["labels"]
+        )
 
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val_accu", self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val_roc_auc", self.val_auroc, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val_pr_auc", self.val_pr_auc, on_step=False, on_epoch=True, prog_bar=True)
+        self.val_auroc.update(
+            probs,
+            batch["labels"]
+        )
+
+        self.val_pr_auc.update(
+            probs,
+            batch["labels"]
+        )
+
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
+        self.log("val_accu", self.val_accuracy, on_epoch=True, prog_bar=True)
+        self.log("val_roc_auc", self.val_auroc, on_epoch=True, prog_bar=True)
+        self.log("val_pr_auc", self.val_pr_auc, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self):
+
         metrics = self.trainer.callback_metrics
-        
+
         val_loss = metrics.get("val_loss")
+
         if val_loss is None:
             return
-        
+
         if float(val_loss) < self.best_val_metrics["val_loss"]:
+
             self.best_val_metrics = {
                 "val_loss": float(val_loss),
                 "val_accu": float(metrics["val_accu"]),
@@ -127,42 +283,75 @@ class DNAClassifier(pl.LightningModule):
                 "val_pr_auc": float(metrics["val_pr_auc"]),
             }
 
-    def on_test_epoch_start(self):
+    # =====================================================
+    # TEST
+    # =====================================================
+    def on_test_start(self):
+
         self.test_probs = []
         self.test_labels = []
+        self.test_ids = []
 
         self.test_accuracy.reset()
         self.test_auroc.reset()
         self.test_pr_auc.reset()
 
-    def test_step(self,  batch, batch_idx):
-        logits = self(batch['input_ids'], batch['attention_mask'])
-        loss = self.loss_fn(logits, batch['labels'])
+    def test_step(self, batch, batch_idx):
+
+        logits = self(
+            batch["input_ids"],
+            batch["attention_mask"]
+        )
+
+        loss = self.loss_fn(
+            logits,
+            batch["labels"]
+        )
 
         preds = torch.argmax(logits, dim=1)
-        #accuracy = (preds == batch['labels']).float().mean()
-        self.test_accuracy.update(preds, batch['labels'])
+        probs = torch.softmax(logits, dim=1)
 
-        probs = torch.softmax(logits, dim=1)[:,1]
-        self.test_auroc.update(probs, batch['labels'])
-        self.test_pr_auc.update(probs, batch['labels'])
+        self.test_accuracy.update(
+            preds,
+            batch["labels"]
+        )
 
-        self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test_accu", self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test_roc_auc", self.test_auroc, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test_pr_auc", self.test_pr_auc, on_step=False, on_epoch=True, prog_bar=True)
+        self.test_auroc.update(
+            probs,
+            batch["labels"]
+        )
+
+        self.test_pr_auc.update(
+            probs,
+            batch["labels"]
+        )
+
+        self.log("test_loss", loss, on_epoch=True, prog_bar=True)
+        self.log("test_accu", self.test_accuracy, on_epoch=True, prog_bar=True)
+        self.log("test_roc_auc", self.test_auroc, on_epoch=True, prog_bar=True)
+        self.log("test_pr_auc", self.test_pr_auc, on_epoch=True, prog_bar=True)
 
         self.test_probs.append(probs.cpu())
-        self.test_labels.append(batch['labels'].cpu())
-        
-    def on_test_epoch_end(self):
+        self.test_labels.append(batch["labels"].cpu())
+        self.test_ids.extend(batch["id"])
+
+    def on_test_end(self):
+
         self.test_probs = torch.cat(self.test_probs)
         self.test_labels = torch.cat(self.test_labels)
-    
-    def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
-            self.parameters(),
-            lr=self.lr
-        )
-        return optimizer
 
+    # =====================================================
+    # OPTIMIZER
+    # =====================================================
+    def configure_optimizers(self):
+
+        if self.optimizer_name.lower() == "adamw":
+
+            return torch.optim.AdamW(
+                self.parameters(),
+                lr=self.lr
+            )
+
+        raise ValueError(
+            f"Unknown optimizer: {self.optimizer_name}"
+        )

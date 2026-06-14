@@ -1,175 +1,255 @@
-# Genomic Sequence Classification with DNABERT
+# Genomic Foundation Models for Cell-Type Specific DHS Classification
 
-## Abstract
+## Overview
 
-We present a deep learning framework for genomic sequence classification using transformer-based DNA language models (DNABERT). The goal is to classify regulatory DNA sequences, specifically enhancer vs non-enhancer regions, using k-mer tokenized genomic input.
+This project explores the use of genomic foundation models to classify cell-type-specific DNase I hypersensitive sites (DHSs) from DNA sequence alone.
 
-We systematically evaluate different fine-tuning strategies, including frozen backbone, partial fine-tuning, and full fine-tuning of transformer layers. Experimental results demonstrate that partial fine-tuning of the last transformer layers achieves the best performance, outperforming both frozen and full fine-tuning approaches in terms of accuracy and ROC-AUC.
+DNase I hypersensitive sites are markers of regulatory DNA and represent regions of open chromatin associated with promoters, enhancers, and other regulatory elements. Because many human diseases arise from dysregulation of gene regulatory programs, understanding sequence determinants of DHS activity is an important step toward interpreting non-coding variation and regulatory mechanisms.
 
-These findings suggest that pretrained DNA language models capture general genomic structure, while task-specific adaptation is most effective in higher transformer layers.
-
----
-
-## 1. Introduction
-
-Regulatory element prediction is a fundamental problem in computational genomics. Enhancers play a critical role in gene regulation, yet their identification from raw DNA sequences remains challenging.
-
-Recent advances in transformer-based language models, such as DNABERT, enable learning contextual representations of genomic sequences using k-mer tokenization. However, optimal fine-tuning strategies for downstream genomic tasks remain an open question.
-
-This study investigates how different levels of model fine-tuning affect classification performance on enhancer prediction.
+This project was developed as part of a computational biology and AI technical assessment focused on leveraging pretrained genomic language models for regulatory sequence prediction.
 
 ---
 
-## 2. Methods
+## Objectives
 
-### 2.1 Dataset
+The primary goals were:
 
-We use a binary classification dataset:
-
-- Enhancer sequences
-- Non-enhancer sequences
-
-Sequences are encoded using **k-mer tokenization (k=6)**.
-
-The dataset includes:
-- Synthetic enhancer classification data (easy.csv)
-- Balanced class distribution across train/validation/test splits
+1. Construct a curated DHS sequence dataset from the Meuleman DHS Index.
+2. Extract cell-type-specific DHS regions from multiple human cell types.
+3. Fine-tune a pretrained DNABERT model on DHS sequences.
+4. Evaluate whether sequence information alone can distinguish cell-type-specific regulatory elements.
+5. Establish a reproducible workflow suitable for future disease-related regulatory sequence studies.
 
 ---
 
-### 2.2 Model Architecture
+## Dataset
 
-We use a pretrained DNABERT model:
+### DHS Index
 
-- Base model: `zhihan1996/DNA_bert_6`
-- Transformer encoder (BERT architecture)
-- Hidden representation extracted from `[CLS]` token
-- Classification head:
-  - Linear → ReLU → Dropout → Linear
+The DHS Index contains approximately 3.6 million regulatory elements derived from hundreds of human tissues and cell types. 
+Data were obtained from [meuleman.org](https://www.meuleman.org/research/dhsindex/) . 
 
 ---
 
-### 2.3 Training Strategies
+### Cell Types
 
-We evaluate three fine-tuning strategies:
+The following cell types were selected:
 
-- **Frozen backbone**: only classifier head is trained
-- **Partial fine-tuning**: last N transformer layers are trainable
-- **Full fine-tuning**: entire transformer model is trainable
+| Label   | Cell Type                    |
+| ------- | ---------------------------- |
+| K562    | Chronic myelogenous leukemia |
+| HepG2   | Liver carcinoma              |
+| GM12878 | B lymphoblastoid             |
+| hESCT0  | Human embryonic stem cells   |
 
-Loss function: Cross-Entropy Loss  
-Optimizer: AdamW  
-Framework: PyTorch Lightning  
-Precision: Mixed precision (16-bit AMP)
-
----
-
-### 2.4 Evaluation Metrics
-
-Model performance is evaluated using:
-
-- Accuracy
-- ROC-AUC
-- Precision-Recall AUC
-- Confusion matrix
+Only DHS peaks uniquely associated with a single selected cell type were retained.
 
 ---
 
-## 3. Results
+## Data Processing
 
-### 3.1 Performance Comparison
+The workflow follows the preprocessing strategy implemented in the [DNA-Diffusion Project](https://github.com/pinellolab/DNA-Diffusion?utm_source=chatgpt.com) :
 
-| Tuning Strategy | Trainable Params | Test Accuracy | ROC-AUC | PR-AUC | Training Time |
-|----------------|------------------|--------------|---------|--------|---------------|
-| Frozen | ~0.6M | 0.52 | 0.53 | 0.52 | ~1.7 min |
-| Last 2 layers | ~14.8M | **0.88** | **0.95** | **0.95** | ~3.3 min |
-| Last 4 layers | ~28.9M | 0.83 | 0.91 | 0.90 | ~4.7 min |
-| Full fine-tuning | ~89.8M | 0.50 | 0.50 | 0.50 | ~81.6 min |
+Specifically:
 
----
+1. Download DHS metadata and peak matrices.
+2. Download the hg38 reference genome.
+3. Extract DHS coordinates.
+4. Retrieve genomic sequences centered on DHS summits.
+5. Filter peaks to retain cell-type-exclusive DHS regions.
+6. Balance the dataset across cell types.
 
-### 3.2 Key Finding
+The resulting dataset contains:
 
-Partial fine-tuning of the last transformer layers achieves optimal performance, suggesting that DNABERT’s pretrained representations capture general genomic structure, while task-specific adaptation is localized to higher-level layers.
-
----
-
-## 4. Discussion
-
-Our results highlight the importance of selecting an appropriate fine-tuning strategy when applying large pretrained language models to genomic sequences.
-
-### Key observations:
-
-- **Frozen models underfit**, indicating that classifier-only training is insufficient for capturing task-specific genomic signals.
-- **Full fine-tuning leads to performance collapse**, likely due to overfitting and limited dataset size.
-- **Partial fine-tuning provides the best trade-off**, preserving pretrained representations while allowing task-specific adaptation.
-
-These findings are consistent with transfer learning behavior observed in natural language processing models, where lower layers capture general structure and higher layers adapt to task-specific patterns.
+* DNA sequence
+* DHS identifier
+* Chromosome
+* Cell-type label
 
 ---
 
-## 5. Conclusion
+## Model
 
-We present a modular framework for genomic sequence classification using DNABERT. Our experiments demonstrate that partial fine-tuning yields optimal performance for enhancer classification tasks.
+### Foundation Model
 
-Future work will extend this framework to:
-
-- Promoter prediction
-- Multi-class regulatory element classification
-- Integration of ENCODE and FANTOM5 datasets
-- Chromosome-level train/test splitting
+This project uses: **DNABERT-6**,  a transformer language model pretrained on genomic sequences using 6-mer tokenization.
 
 ---
 
-## 6. Installation
+### Fine-Tuning Strategy
 
+Input DNA sequences are converted into overlapping 6-mers before tokenization.
+
+Example:
 ```
-git clone https://github.com/XuejianXiong/Genomic-Sequence-Classification.git
-
-cd Genomic-Sequence-Classification
-
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
-
-python3 -m experiments.Transformer
+DNA:  ATCGTACG
+6-mers:   ATCGTA TCGTAC CGTACG
 ```
 
----
-## 7. Project Structure
+The pretrained DNABERT encoder is fine-tuned using a classification head consisting of:
+
+* Linear layer
+* ReLU activation
+* Dropout
+* Output layer
+
+Only the final transformer layers were updated during training:
 
 ```
-genomic-sequence-classification/
-│
-├── README.md
-├── requirements.txt
-├── .gitignore
-│
+tuning = -2
+```
+
+This significantly reduces computational requirements while preserving most pretrained representations.
+
+---
+
+## Train / Validation / Test Split
+
+To avoid information leakage between highly similar genomic regions, chromosome-wise splitting was used.
+
+Example:
+```
+Training:   chr1–chr16
+Validation:   chr17–chr19
+Testing:    chr20–chr22, chrX
+```
+
+This evaluation strategy is more realistic than random splitting because the model must generalize to unseen genomic loci.
+
+---
+
+## Repository Structure
+
+```
+.
 ├── data/
-│   ├── easy.csv
-│   ├── medium.csv
-│   ├── realistic.csv
-│   └── noisy.csv
+│   ├── hg38.fa
+│   └── filtered_dataset.txt
 │
-├── outputs/
+├── experiments/
+│   ├── Prepare_DHS_data.py
+│   └── Transformer.py
 │
 ├── src/
 │   ├── datasets.py
 │   ├── model.py
-│   ├── metrics.py
 │   ├── plots.py
 │   └── utils.py
 │
-├── experiments/
-│   ├── Generate_SeqData.py
-│   └── Transformer.py
+├── outputs/dhs/
+│   ├── checkpoints
+│   ├── model
+│   ├── tokenizer
+│   ├── experiment_summary.csv
+│   ├── test_confusion_matrix.png
+│   ├── test_roc_curve.png
+│   ├── test_pr_curve.png
+│   └── test_predictions.csv
 │
-└── LICENSE
+├── configs/
+│   └── config_dhs.json
+│
+├── requirements.txt
+└── README.md
 ```
 
 ---
-## 8. License
-MIT License – feel free to use, adapt, and share.
+
+## Installation
+
+Create a Python environment:
+```
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Install dependencies:
+```
+pip install -r requirements.txt
+```
 
 ---
+
+## Running the Pipeline
+
+### Train DNABERT
+
+```
+python3 -m experiments.Transformer --config configs/config.json
+```
+
+### Evaluate Model
+
+The evaluation pipeline automatically generates:
+
+* Classification report
+* Confusion matrix
+* ROC curves
+* Precision-recall curves
+* Prediction table
+
+
+---
+
+## Results
+
+Example performance obtained using chromosome-wise evaluation:
+
+| Metric   | Value |
+| -------- | ----- |
+| Accuracy | ~70%  |
+| ROC-AUC  | ~0.89 |
+| PR-AUC   | ~0.77 |
+
+The model successfully captures sequence-level regulatory signatures associated with individual cell types despite being trained solely on DNA sequence.
+
+The model achieves strong performance on DHS classification.
+
+### ROC Curve
+![ROC Curve](outputs/dhs/test_roc_curve.png)
+
+### Precision-Recall Curve
+![PR Curve](outputs/dhs/test_pr_curve.png)
+
+### Confusion Matrix
+![Confusion Matrix](outputs/dhs/test_confusion_matrix.png)
+
+---
+
+## Limitations
+
+Several limitations remain:
+
+* Only four cell types were analyzed.
+* DHS activity is influenced by chromatin state and transcription factor occupancy not included in the model.
+* Limited fine-tuning was performed on consumer hardware.
+* No external epigenomic signals were incorporated.
+
+---
+
+## Future Work
+
+Potential extensions include:
+
+* Larger foundation models (Nucleotide Transformer, HyenaDNA, GENA-LM).
+* Multi-task prediction across hundreds of cell types.
+* Variant effect prediction.
+* Integration with GWAS and disease-associated variants.
+* Attention-based interpretation of regulatory motifs.
+* Retrieval-augmented genomic foundation models.
+
+---
+
+## References
+
+Meuleman W, et al. (2020). Index and biological spectrum of human DNase I hypersensitive sites.
+
+Ji Y, et al. (2021). DNABERT: pre-trained Bidirectional Encoder Representations from Transformers model for DNA-language in genome.
+
+Pinello Lab DNA-Diffusion Project:  https://github.com/pinellolab/DNA-Diffusion
+
+---
+
+## License
+
+MIT License – feel free to use, adapt, and share.

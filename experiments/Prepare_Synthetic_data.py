@@ -4,9 +4,8 @@ import pandas as pd
 
 random.seed(42)
 
-
+# Setup parameters for different types of enhancer and non-enhancer sequencen data
 DATASETS = {
-
     "easy": {
         "enhancer_motifs": [
             "AAAAAA",
@@ -37,19 +36,21 @@ DATASETS = {
         "max_length": 200,
     },
 
-    "realistic": {
+    "realistic": {        
         "enhancer_motifs": [
             "CACGTG",
-            "TGACTCA",
-            "GGAAAG",
-            "CGCGCG"
+            "CATGTG",
+            "CACGCG",
+            "CACGTT"
         ],
+        
         "non_enhancer_motifs": [
             "CACGTA",
-            "TGATTCA",
-            "GGATAG",
-            "CGTGCG"
+            "CATGTA",
+            "CACGCA",
+            "CACGCT"
         ],
+
         "noise_rate": 0.0,
         "min_length": 150,
         "max_length": 300,
@@ -87,6 +88,7 @@ DATASETS = {
 }
 
 
+'''
 def random_dna(length: int) -> str:
     """
     Generate a random DNA sequence.
@@ -94,7 +96,16 @@ def random_dna(length: int) -> str:
     return "".join(
         random.choices("ACGT", k=length)
     )
-
+'''
+def random_dna(length):
+    """
+    Generate a random DNA sequence.
+    """
+    return "".join(random.choices(
+        population="ACGT",
+        weights=[0.3, 0.2, 0.2, 0.3],
+        k=length
+    ))
 
 def insert_motif(
     sequence: str,
@@ -198,7 +209,9 @@ def generate_sequence(
 
     else:
 
-        n_motifs = random.randint(1, 3)
+        # Randomly pick an integer from 1,2,3 as the number of motifs
+        #n_motifs = random.randint(1, 3)
+        n_motifs = random.randint(4, 8)
 
         selected = random.sample(
             motifs,

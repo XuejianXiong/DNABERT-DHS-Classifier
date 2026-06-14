@@ -13,3 +13,8 @@ requests==2.32.5
 transformers==4.57.6
 pytorch_lightning==2.6.0
 torchmetrics==1.8.2
+
+pyarrow==21.0.0
+gdown==5.2.2
+Bio==1.6.2
+seaborn==0.13.2
