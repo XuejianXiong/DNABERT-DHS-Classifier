@@ -191,6 +191,22 @@ The evaluation pipeline automatically generates:
 
 ---
 
+## Experiment Tracking with MLflow
+
+This project integrates MLflow through PyTorch Lightning's MLFlowLogger for reproducible experiment tracking.
+
+After training completes:
+
+```mlflow ui```
+
+Open:
+
+```http://127.0.0.1:5000```
+
+The dashboard allows comparison of multiple experiments, hyperparameter configurations, and model versions.
+
+---
+
 ## Results
 
 Example performance obtained using chromosome-wise evaluation:
@@ -212,7 +228,7 @@ The model achieves strong performance on DHS classification.
 ![PR Curve](outputs/dhs/test_pr_curve.png)
 
 ### Confusion Matrix
-![Confusion Matrix](outputs/dhs/test_confusion_matrix.png)
+![Confusion Matrix](outputs/dhs/test_cm_table.png)
 
 ---
 
