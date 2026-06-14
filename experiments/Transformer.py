@@ -200,14 +200,14 @@ def main(config_path: str):
     # PLOTS
     # =========================
     if num_classes == 2:
-        plot_roc(probs[:, 1], labels, f"{output_path}/roc.png")
-        plot_pr_curve(probs[:, 1], labels, f"{output_path}/pr.png")
-        plot_confusion_matrix(preds, labels, f"{output_path}/cm.png")
+        plot_roc(probs[:, 1], labels, f"{output_path}/test_roc_curve.png")
+        plot_pr_curve(probs[:, 1], labels, f"{output_path}/test_pr_curve.png")
+        plot_confusion_matrix(preds, labels, f"{output_path}/test_cm_table.png")
 
     else:
-        plot_multiclass_roc(probs, labels, class_names, f"{output_path}/roc.png")
-        plot_multiclass_pr(probs, labels, class_names, f"{output_path}/pr.png")
-        plot_multiclass_confusion_matrix(preds, labels, class_names, f"{output_path}/cm.png")
+        plot_multiclass_roc(probs, labels, class_names, f"{output_path}/test_roc_curve.png")
+        plot_multiclass_pr(probs, labels, class_names, f"{output_path}/test_pr_curve.png")
+        plot_multiclass_confusion_matrix(preds, labels, class_names, f"{output_path}/test_cm_table.png")
 
     # =========================
     # SUMMARY
