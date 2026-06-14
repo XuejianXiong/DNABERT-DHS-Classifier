@@ -175,7 +175,7 @@ pip install -r requirements.txt
 ### Train DNABERT
 
 ```
-python3 -m experiments.Transformer --config configs/config.json
+python3 -m experiments.Transformer --config configs/config_dhs.json
 ```
 
 ### Evaluate Model
