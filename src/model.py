@@ -7,7 +7,8 @@ from transformers import AutoModel
 from torchmetrics.classification import (
     MulticlassAccuracy,
     MulticlassAUROC,
-    MulticlassAveragePrecision
+    MulticlassAveragePrecision,
+    MulticlassF1Score
 )
 
 
@@ -96,6 +97,11 @@ class DNAClassifier(pl.LightningModule):
             average=metric_average
         )
 
+        self.test_f1_macro = MulticlassF1Score(
+            num_classes=num_classes,
+            average=metric_average
+        )
+
         # =====================================================
         # TUNING
         # =====================================================
@@ -180,17 +186,11 @@ class DNAClassifier(pl.LightningModule):
     # =====================================================
     def forward(self, input_ids, attention_mask):
 
-        output = self.transformer(
-            input_ids=input_ids,
-            attention_mask=attention_mask
-        )
+        output = self.transformer(input_ids=input_ids, attention_mask=attention_mask)
 
         hidden = output.last_hidden_state
 
-        embedding = self.pool_embeddings(
-            hidden,
-            attention_mask
-        )
+        embedding = self.pool_embeddings(hidden, attention_mask)
 
         logits = self.classifier(embedding)
 
@@ -201,23 +201,10 @@ class DNAClassifier(pl.LightningModule):
     # =====================================================
     def training_step(self, batch, batch_idx):
 
-        logits = self(
-            batch["input_ids"],
-            batch["attention_mask"]
-        )
+        logits = self(batch["input_ids"], batch["attention_mask"])
+        loss = self.loss_fn(logits, batch["labels"])
 
-        loss = self.loss_fn(
-            logits,
-            batch["labels"]
-        )
-
-        self.log(
-            "train_loss",
-            loss,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True
-        )
+        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
 
@@ -232,43 +219,24 @@ class DNAClassifier(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
 
-        logits = self(
-            batch["input_ids"],
-            batch["attention_mask"]
-        )
-
-        loss = self.loss_fn(
-            logits,
-            batch["labels"]
-        )
+        logits = self(batch["input_ids"], batch["attention_mask"])
+        loss = self.loss_fn(logits, batch["labels"])
 
         preds = torch.argmax(logits, dim=1)
         probs = torch.softmax(logits, dim=1)
 
-        self.val_accuracy.update(
-            preds,
-            batch["labels"]
-        )
+        self.val_accuracy.update(preds, batch["labels"])
+        self.val_auroc.update(probs, batch["labels"])
+        self.val_pr_auc.update(probs, batch["labels"])
 
-        self.val_auroc.update(
-            probs,
-            batch["labels"]
-        )
-
-        self.val_pr_auc.update(
-            probs,
-            batch["labels"]
-        )
-
-        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
-        self.log("val_accu", self.val_accuracy, on_epoch=True, prog_bar=True)
-        self.log("val_roc_auc", self.val_auroc, on_epoch=True, prog_bar=True)
-        self.log("val_pr_auc", self.val_pr_auc, on_epoch=True, prog_bar=True)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_accu", self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_roc_auc", self.val_auroc, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_pr_auc", self.val_pr_auc, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self):
 
         metrics = self.trainer.callback_metrics
-
         val_loss = metrics.get("val_loss")
 
         if val_loss is None:
@@ -298,38 +266,22 @@ class DNAClassifier(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
 
-        logits = self(
-            batch["input_ids"],
-            batch["attention_mask"]
-        )
-
-        loss = self.loss_fn(
-            logits,
-            batch["labels"]
-        )
+        logits = self(batch["input_ids"], batch["attention_mask"])
+        loss = self.loss_fn(logits, batch["labels"])
 
         preds = torch.argmax(logits, dim=1)
         probs = torch.softmax(logits, dim=1)
 
-        self.test_accuracy.update(
-            preds,
-            batch["labels"]
-        )
-
-        self.test_auroc.update(
-            probs,
-            batch["labels"]
-        )
-
-        self.test_pr_auc.update(
-            probs,
-            batch["labels"]
-        )
+        self.test_accuracy.update(preds, batch["labels"])
+        self.test_auroc.update(probs, batch["labels"])
+        self.test_pr_auc.update(probs, batch["labels"])
+        self.test_f1_macro.update(preds, batch["labels"])
 
         self.log("test_loss", loss, on_epoch=True, prog_bar=True)
         self.log("test_accu", self.test_accuracy, on_epoch=True, prog_bar=True)
         self.log("test_roc_auc", self.test_auroc, on_epoch=True, prog_bar=True)
         self.log("test_pr_auc", self.test_pr_auc, on_epoch=True, prog_bar=True)
+        self.log("test_f1_macro", self.test_f1_macro, on_epoch=True, prog_bar=True)
 
         self.test_probs.append(probs.cpu())
         self.test_labels.append(batch["labels"].cpu())
@@ -347,11 +299,6 @@ class DNAClassifier(pl.LightningModule):
 
         if self.optimizer_name.lower() == "adamw":
 
-            return torch.optim.AdamW(
-                self.parameters(),
-                lr=self.lr
-            )
+            return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
-        raise ValueError(
-            f"Unknown optimizer: {self.optimizer_name}"
-        )
+        raise ValueError(f"Unknown optimizer: {self.optimizer_name}")

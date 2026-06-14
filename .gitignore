@@ -29,7 +29,7 @@ outputs/*
 !outputs/
 !outputs/dhs/
 !outputs/dhs/*.png
-!outputs/dhs/experiment_summary.csv
+
 
 checkpoints/
 *.pt
