@@ -18,3 +18,5 @@ pyarrow==21.0.0
 gdown==5.2.2
 Bio==1.6.2
 seaborn==0.13.2
+
+mlflow==3.1.4
