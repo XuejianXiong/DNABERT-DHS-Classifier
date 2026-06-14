@@ -146,6 +146,9 @@ This evaluation strategy is more realistic than random splitting because the mod
 │   ├── test_pr_curve.png
 │   └── test_predictions.csv
 │
+├── configs/
+│   └── config_dhs.json
+│
 ├── requirements.txt
 └── README.md
 ```
@@ -172,7 +175,7 @@ pip install -r requirements.txt
 ### Train DNABERT
 
 ```
-python -m experiments.Transformer 
+python3 -m experiments.Transformer --config configs/config.json
 ```
 
 ### Evaluate Model

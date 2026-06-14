@@ -164,6 +164,8 @@ def plot_multiclass_confusion_matrix(
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.title("Confusion Matrix")
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
 
     plt.tight_layout()
     plt.savefig(outfile)
