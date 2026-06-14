@@ -141,7 +141,7 @@ This evaluation strategy is more realistic than random splitting because the mod
 │   ├── model
 │   ├── tokenizer
 │   ├── experiment_summary.csv
-│   ├── test_confusion_matrix.png
+│   ├── test_cm_table.png
 │   ├── test_roc_curve.png
 │   ├── test_pr_curve.png
 │   └── test_predictions.csv
@@ -195,15 +195,15 @@ The evaluation pipeline automatically generates:
 
 This project integrates MLflow through PyTorch Lightning's MLFlowLogger for reproducible experiment tracking.
 
-After training completes:
+After training completes, 
 
 ```mlflow ui```
 
-Open:
+Open
 
 ```http://127.0.0.1:5000```
 
-The dashboard allows comparison of multiple experiments, hyperparameter configurations, and model versions.
+to visualize experiment results. The dashboard allows comparison of multiple experiments, hyperparameter configurations, and model versions.
 
 ---
 
