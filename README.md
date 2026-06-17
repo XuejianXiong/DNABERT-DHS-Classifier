@@ -2,6 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
+![DNABERT](https://img.shields.io/badge/DNABERT-Genome%20Transformer%20(6--mer)-8A2BE2)
 ![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-yellow)
 ![Lightning](https://img.shields.io/badge/PyTorch--Lightning-792EE5)
 ![MLflow](https://img.shields.io/badge/MLflow-Tracking-orange)
